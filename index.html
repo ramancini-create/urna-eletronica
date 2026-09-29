@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Urna Eletrônica Escolar</title>
+  <link rel="manifest" href="manifest.json">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; font-family: Arial, sans-serif; user-select: none; }
+    body { background-color: #dcdcdc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 10px; }
+    .urna { background-color: #dbd5c9; padding: 20px; border-radius: 10px; box-shadow: 0px 5px 15px rgba(0,0,0,0.3); display: flex; flex-direction: row; gap: 20px; max-width: 900px; width: 100%; }
+    .tela { background: linear-gradient(135deg, #e0f0e0 0%, #c8e0c8 100%); border: 3px solid #555; border-radius: 5px; flex: 2; padding: 15px; display: flex; flex-direction: column; justify-content: space-between; min-height: 380px; position: relative; }
+    .info-voto { font-size: 14px; color: #333; font-weight: bold; }
+    .cargo { font-size: 18px; font-weight: bold; margin-top: 5px; text-transform: uppercase; color: #111; }
+    .numero-box { display: flex; gap: 10px; margin: 10px 0; }
+    .digito { width: 40px; height: 50px; border: 2px solid #000; font-size: 30px; font-weight: bold; text-align: center; line-height: 45px; background-color: #fff; }
+    .pisca { animation: piscar 1s infinite; }
+    @keyframes piscar { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+    .dados-candidato { font-size: 15px; line-height: 1.4; min-height: 130px; }
+    .foto-candidato { width: 110px; height: 130px; border: 2px solid #000; float: right; background-color: #fff; object-fit: cover; margin-left: 10px; }
+    .rodape-tela { border-top: 2px solid #000; padding-top: 8px; font-size: 11px; color: #222; clear: both; }
+    .fim { font-size: 70px; font-weight: bold; text-align: center; margin: auto; color: #111; }
+    .teclado { background-color: #2b2b2b; padding: 15px; border-radius: 5px; flex: 1.2; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+    .teclas-numericas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+    .btn { background-color: #111; color: #fff; border: none; border-radius: 5px; font-size: 22px; font-weight: bold; padding: 15px; cursor: pointer; text-align: center; }
+    .btn:active { background-color: #444; }
+    .btn-zero { grid-column: 2; }
+    .teclas-acoes { display: flex; gap: 8px; width: 100%; margin-top: 10px; }
+    .btn-acao { flex: 1; padding: 12px 5px; font-size: 11px; font-weight: bold; text-transform: uppercase; border: none; border-radius: 3px; cursor: pointer; }
+    .btn-branco { background-color: #fff; color: #000; }
+    .btn-corrige { background-color: #e65100; color: #fff; }
+    .btn-confirma { background-color: #2e7d32; color: #fff; padding-top: 18px; }
+    .painel-admin { display: flex; gap: 10px; margin-top: 15px; width: 100%; justify-content: center; }
+    .btn-admin { background: transparent; border: 1px solid #777; color: #ccc; padding: 6px 10px; font-size: 11px; border-radius: 3px; cursor: pointer; }
+    .btn-reset { border-color: #e53935; color: #ef9a9a; }
+    @media (max-width: 600px) { .urna { flex-direction: column; } }
+  </style>
+</head>
+<body>
+
+  <div class="urna">
+    <div class="tela" id="tela">
+      <div>
+        <div class="info-voto">SEU VOTO VAI PARA</div>
+        <div class="cargo" id="cargo-titulo">CHAPA DO GRÊMIO</div>
+        
+        <div class="numero-box" id="caixa-numeros"></div>
+
+        <div class="dados-candidato" id="dados"></div>
+      </div>
+
+      <div class="rodape-tela">
+        Aperte a tecla:<br>
+        <strong>VERDE</strong> para CONFIRMAR<br>
+        <strong>LARANJA</strong> para REINICIAR
+      </div>
+    </div>
+
+    <div class="teclado">
+      <div class="teclas-numericas">
+        <button type="button" class="btn" onclick="digitar('1')">1</button>
+        <button type="button" class="btn" onclick="digitar('2')">2</button>
+        <button type="button" class="btn" onclick="digitar('3')">3</button>
+        <button type="button" class="btn" onclick="digitar('4')">4</button>
+        <button type="button" class="btn" onclick="digitar('5')">5</button>
+        <button type="button" class="btn" onclick="digitar('6')">6</button>
+        <button type="button" class="btn" onclick="digitar('7')">7</button>
+        <button type="button" class="btn" onclick="digitar('8')">8</button>
+        <button type="button" class="btn" onclick="digitar('9')">9</button>
+        <button type="button" class="btn btn-zero" onclick="digitar('0')">0</button>
+      </div>
+
+      <div class="teclas-acoes">
+        <button type="button" class="btn-acao btn-branco" onclick="votarBranco()">Branco</button>
+        <button type="button" class="btn-acao btn-corrige" onclick="corrige()">Corrige</button>
+        <button type="button" class="btn-acao btn-confirma" onclick="confirma()">Confirma</button>
+      </div>
+
+      <div class="painel-admin">
+        <button type="button" class="btn-admin" onclick="verZerésima()">📊 Zerésima / Apuração</button>
+        <button type="button" class="btn-admin btn-reset" onclick="zerarUrna()">⚙️ Zerar Urna</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuração das Chapas e Nomes do Grêmio
+    const dadosEleicao = {
+      chapa: {
+        titulo: "CHAPA DO GRÊMIO",
+        digitos: 2,
+        candidatos: {
+          "33": { 
+            nome: "Grupo das Melhorias", 
+            foto: "chapa33.jpg"
+          },
+          "99": { 
+            nome: "Geração Alfa", 
+            foto: "chapa99.jpg"
+          }
+        }
+      },
+      nome_gremio: {
+        titulo: "NOME DO GRÊMIO",
+        digitos: 3,
+        candidatos: {
+          "100": { 
+            nome: "Ponte do Saber"
+          },
+          "200": { 
+            nome: "Conexão Felício"
+          }
+        }
+      }
+    };
+
+    let etapaAtual = "chapa";
+    let numeroDigitado = "";
+    let eBranco = false;
+
+    // Função de áudio da urna
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function tocarSom(tipo) {
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (tipo === 'confirma') {
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } else if (tipo === 'fim') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 1.2);
+      }
+    }
+
+    function obterVotosIniciais() {
+      return {
+        chapa: { "33": 0, "99": 0, brancos: 0, nulos: 0 },
+        nome_gremio: { "100": 0, "200": 0, brancos: 0, nulos: 0 }
+      };
+    }
+
+    let votos = JSON.parse(localStorage.getItem("votos_gremio_escolar")) || obterVotosIniciais();
+
+    function atualizarTela() {
+      const etapa = dadosEleicao[etapaAtual];
+      document.getElementById("cargo-titulo").innerText = etapa.titulo;
+
+      const caixaNumeros = document.getElementById("caixa-numeros");
+      caixaNumeros.innerHTML = "";
+
+      for (let i = 0; i < etapa.digitos; i++) {
+        const div = document.createElement("div");
+        div.className = "digito";
+        div.innerText = numeroDigitado[i] || "";
+
+        if (!eBranco && (i === numeroDigitado.length || (i === etapa.digitos - 1 && numeroDigitado.length === etapa.digitos))) {
+          if (numeroDigitado.length < etapa.digitos && i === numeroDigitado.length) {
+            div.classList.add("pisca");
+          }
+        }
+        caixaNumeros.appendChild(div);
+      }
+
+      const dados = document.getElementById("dados");
+
+      if (eBranco) {
+        dados.innerHTML = "<strong style='font-size: 20px;'>VOTO EM BRANCO</strong>";
+      } else if (numeroDigitado.length === etapa.digitos) {
+        const candidato = etapa.candidatos[numeroDigitado];
+        if (candidato) {
+          let fotoHtml = candidato.foto ? `<img src="${candidato.foto}" class="foto-candidato" alt="Foto da Opção">` : "";
+          dados.innerHTML = fotoHtml + `<strong>OPÇÃO:</strong> ${candidato.nome}`;
+        } else {
+          dados.innerHTML = "<strong style='color:red; font-size: 20px;'>VOTO NULO</strong><br><small>Opção não encontrada</small>";
+        }
+      } else {
+        dados.innerHTML = "";
+      }
+    }
+
+    function digitar(num) {
+      const limite = dadosEleicao[etapaAtual].digitos;
+      if (eBranco) return;
+      if (numeroDigitado.length < limite) {
+        numeroDigitado += num;
+        atualizarTela();
+      }
+    }
+
+    function votarBranco() {
+      numeroDigitado = "";
+      eBranco = true;
+      atualizarTela();
+    }
+
+    function corrige() {
+      numeroDigitado = "";
+      eBranco = false;
+      atualizarTela();
+    }
+
+    function confirma() {
+      const etapa = dadosEleicao[etapaAtual];
+      let votoValido = false;
+
+      if (eBranco) {
+        votos[etapaAtual].brancos++;
+        votoValido = true;
+      } else if (numeroDigitado.length === etapa.digitos) {
+        if (etapa.candidatos[numeroDigitado]) {
+          votos[etapaAtual][numeroDigitado] = (votos[etapaAtual][numeroDigitado] || 0) + 1;
+        } else {
+          votos[etapaAtual].nulos++;
+        }
+        votoValido = true;
+      }
+
+      if (votoValido) {
+        try {
+          localStorage.setItem("votos_gremio_escolar", JSON.stringify(votos));
+        } catch(e) {}
+
+        if (etapaAtual === "chapa") {
+          tocarSom('confirma');
+          etapaAtual = "nome_gremio";
+          numeroDigitado = "";
+          eBranco = false;
+          atualizarTela();
+        } else {
+          tocarSom('fim');
+          document.getElementById("tela").innerHTML = '<div class="fim">FIM</div>';
+          setTimeout(function() {
+            location.reload();
+          }, 2500);
+        }
+      }
+    }
+
+    function verZerésima() {
+      const senha = prompt("Digite a senha de administrador:");
+      if (senha === "1234") {
+        let relatorio = "=== ZERÉSIMA / APURAÇÃO DA ELEIÇÃO ===\n\n";
+        
+        relatorio += "-- CHAPA DO GRÊMIO --\n";
+        relatorio += `Chapa 33 (Grupo das Melhorias): ${votos.chapa["33"] || 0} voto(s)\n`;
+        relatorio += `Chapa 99 (Geração Alfa): ${votos.chapa["99"] || 0} voto(s)\n`;
+        relatorio += `Brancos: ${votos.chapa.brancos || 0} | Nulos: ${votos.chapa.nulos || 0}\n\n`;
+
+        relatorio += "-- NOME DO GRÊMIO --\n";
+        relatorio += `Opção 100 (Ponte do Saber): ${votos.nome_gremio["100"] || 0} voto(s)\n`;
+        relatorio += `Opção 200 (Conexão Felício): ${votos.nome_gremio["200"] || 0} voto(s)\n`;
+        relatorio += `Brancos: ${votos.nome_gremio.brancos || 0} | Nulos: ${votos.nome_gremio.nulos || 0}\n`;
+
+        alert(relatorio);
+      } else if (senha !== null) {
+        alert("Senha incorreta!");
+      }
+    }
+
+    function zerarUrna() {
+      const senha = prompt("Digite a senha para ZERAR a urna:");
+      if (senha === "1234") {
+        const confirmar = confirm("Tem certeza de que deseja ZERAR todos os votos salvos?");
+        if (confirmar) {
+          localStorage.removeItem("votos_gremio_escolar");
+          votos = obterVotosIniciais();
+          alert("Urna zerada com sucesso! Pronta para iniciar a eleição.");
+          location.reload();
+        }
+      } else if (senha !== null) {
+        alert("Senha incorreta!");
+      }
+    }
+
+    window.onload = function() {
+      atualizarTela();
+    };
+  </script>
+</body>
+</html>
