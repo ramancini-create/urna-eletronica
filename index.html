@@ -22,7 +22,18 @@
     .pisca { animation: piscar 1s infinite; }
     @keyframes piscar { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
     .dados-candidato { font-size: 15px; line-height: 1.4; min-height: 130px; }
-    .foto-candidato { width: 110px; height: 130px; border: 2px solid #000; float: right; background-color: #fff; object-fit: cover; margin-left: 10px; }
+    
+    /* Foto maior e sem cortar */
+    .foto-candidato { 
+      width: 160px; 
+      height: 170px; 
+      border: 2px solid #000; 
+      float: right; 
+      background-color: #fff; 
+      object-fit: contain; 
+      margin-left: 10px; 
+    }
+
     .rodape-tela { border-top: 2px solid #000; padding-top: 8px; font-size: 11px; color: #222; clear: both; }
     .fim { font-size: 70px; font-weight: bold; text-align: center; margin: auto; color: #111; }
     .teclado { background-color: #2b2b2b; padding: 15px; border-radius: 5px; flex: 1.2; display: flex; flex-direction: column; gap: 10px; align-items: center; }
